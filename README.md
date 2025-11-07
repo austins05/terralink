@@ -222,21 +222,30 @@ pm2 logs terralink-backend
 terralink-backend/
 ├── src/
 │   ├── index.js                 # Main server
-│   ├── config/tabula.js         # Tabula config
-│   ├── middleware/              # Middleware
+│   ├── config/
+│   │   └── tabula.js           # Tabula API configuration
+│   ├── middleware/
+│   │   └── errorHandler.js     # Error handling middleware
 │   ├── routes/                  # API routes
-│   │   ├── customers.js
-│   │   ├── fieldMaps.js
-│   │   └── monitor.js
-│   └── services/
-│       └── tabulaService.js     # Tabula API integration & caching
+│   │   ├── customers.js        # Customer endpoints
+│   │   ├── fieldMaps.js        # Field map endpoints
+│   │   └── monitor.js          # Monitoring endpoints
+│   ├── services/
+│   │   └── tabulaService.js    # Tabula API integration & caching
+│   └── models/                  # Data models (future use)
 ├── public/
-│   └── index.html               # Monitoring dashboard
-├── .env                          # Environment config
-├── .env.example                 # Environment template
-├── package.json
-└── README.md
+│   └── index.html              # Monitoring dashboard
+├── deploy.sh                    # Standard deployment script
+├── deploy_via_mac.sh           # Mac deployment script
+├── final_deploy.sh             # Production deployment script
+├── .env                         # Environment config (not in git)
+├── .env.example                # Environment template
+├── .gitignore                  # Git ignore rules
+├── package.json                # Dependencies
+├── package-lock.json           # Locked dependencies
+└── README.md                   # This file
 ```
+
 
 ## 🧪 Testing
 
