@@ -121,23 +121,44 @@ router.get('/:fieldId(\\d+)', async (req, res) => {
 /**
  * Get field geometry (requested or worked)
  * GET /api/field-maps/:fieldId/geometry?type=worked
+ * GET /api/field-maps/:fieldId/geometry?type=requested
  */
 router.get('/:fieldId(\\d+)/geometry', async (req, res) => {
   try {
     const { fieldId } = req.params;
     const { type } = req.query;
 
+    const fs = require('fs');
+    fs.appendFileSync('/tmp/route_debug.log', `GET /field-maps/${fieldId}/geometry?type=${type}\n`);
+
     let geometry;
     if (type === 'requested') {
+      fs.appendFileSync('/tmp/route_debug.log', '  → REQUESTED\n');
       geometry = await tabulaService.downloadFieldMap(fieldId);
-    } else {
-      // Default to worked geometry
+    } else if (type === 'worked-detailed') {
+      // Get detailed worked geometry (LineString spray lines)
+      fs.appendFileSync('/tmp/route_debug.log', '  → WORKED-DETAILED\n');
+      geometry = await tabulaService.getWorkedGeometryDetailed(fieldId);
+      fs.appendFileSync('/tmp/route_debug.log', `  Got ${geometry.features.length} features, type: ${geometry.features[0]?.geometry?.type}\n`);
+    } else if (type === 'worked') {
+      console.log('  → Fetching WORKED geometry (coverage area)');
       geometry = await tabulaService.getWorkedGeometry(fieldId);
+
+      // If worked geometry doesn't exist, return an empty feature collection
+      if (!geometry) {
+        geometry = {
+          type: 'FeatureCollection',
+          features: []
+        };
+      }
+    } else {
+      // Default to requested geometry
+      geometry = await tabulaService.downloadFieldMap(fieldId);
     }
 
     res.json({
       success: true,
-      type: type || 'worked',
+      type: type || 'requested',
       data: geometry
     });
   } catch (error) {
@@ -167,6 +188,50 @@ router.get('/:fieldId(\\d+)/download', async (req, res) => {
     });
   } catch (error) {
     console.error('Download field map error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Get cache statistics
+ * GET /api/field-maps/cache/stats
+ */
+router.get('/cache/stats', (req, res) => {
+  try {
+    const stats = tabulaService.getCacheStats();
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Get cache stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Clear cache
+ * DELETE /api/field-maps/cache/clear
+ * Optional query param: customerId
+ */
+router.delete('/cache/clear', (req, res) => {
+  try {
+    const { customerId } = req.query;
+    tabulaService.clearCache(customerId);
+    res.json({
+      success: true,
+      message: customerId
+        ? `Cache cleared for customer ${customerId}`
+        : 'All cache cleared'
+    });
+  } catch (error) {
+    console.error('Clear cache error:', error);
     res.status(500).json({
       success: false,
       error: error.message

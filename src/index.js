@@ -4,16 +4,20 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 const customerRoutes = require('./routes/customers');
 const fieldMapRoutes = require('./routes/fieldMaps');
+const { router: monitorRoutes, trackRequest } = require('./routes/monitor');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow inline scripts for dashboard
+}));
 
 // CORS configuration
 const corsOptions = {
@@ -38,6 +42,12 @@ app.use(express.urlencoded({ extended: true }));
 // Logging
 app.use(morgan('combined'));
 
+// Request tracking middleware (for monitoring dashboard)
+app.use(trackRequest);
+
+// Serve static files (monitoring dashboard)
+app.use(express.static(path.join(__dirname, '../public')));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -50,15 +60,21 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/customers', customerRoutes);
 app.use('/api/field-maps', fieldMapRoutes);
+app.use('/api/monitor', monitorRoutes);
 
-// Root endpoint
-app.get('/', (req, res) => {
+// Root endpoint - redirect to dashboard
+app.get('/api', (req, res) => {
   res.json({
     name: 'Terralink Backend API',
     version: '1.0.0',
     description: 'Backend API for Tabula integration with Rotorsync',
+    dashboard: '/index.html',
     endpoints: {
       health: '/health',
+      monitor: {
+        stats: 'GET /api/monitor/stats',
+        sync: 'POST /api/monitor/sync'
+      },
       customers: {
         search: 'GET /api/customers/search?q=searchTerm',
         getById: 'GET /api/customers/:id'
@@ -89,6 +105,7 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Terralink Backend API running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 API URL: http://localhost:${PORT}`);
+  console.log(`📊 Monitoring Dashboard: http://localhost:${PORT}`);
 });
 
 // Graceful shutdown
