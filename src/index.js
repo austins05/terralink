@@ -9,6 +9,7 @@ const path = require('path');
 const customerRoutes = require('./routes/customers');
 const fieldMapRoutes = require('./routes/fieldMaps');
 const { router: monitorRoutes, trackRequest } = require('./routes/monitor');
+const notificationRoutes = require('./routes/notifications');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -61,6 +62,7 @@ app.get('/health', (req, res) => {
 app.use('/api/customers', customerRoutes);
 app.use('/api/field-maps', fieldMapRoutes);
 app.use('/api/monitor', monitorRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Root endpoint - redirect to dashboard
 app.get('/api', (req, res) => {
@@ -84,6 +86,15 @@ app.get('/api', (req, res) => {
         bulk: 'POST /api/field-maps/bulk',
         details: 'GET /api/field-maps/:fieldId',
         download: 'GET /api/field-maps/:fieldId/download?format=geojson'
+      },
+      notifications: {
+        config: 'GET/POST /api/notifications/config',
+        addAlwaysNotify: 'POST /api/notifications/always-notify',
+        setContractorEmail: 'POST /api/notifications/contractor-email',
+        test: 'POST /api/notifications/test',
+        monitorStatus: 'GET /api/notifications/monitor/status',
+        startMonitor: 'POST /api/notifications/monitor/start',
+        stopMonitor: 'POST /api/notifications/monitor/stop'
       }
     }
   });
@@ -101,16 +112,31 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`🚀 Terralink Backend API running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 API URL: http://localhost:${PORT}`);
   console.log(`📊 Monitoring Dashboard: http://localhost:${PORT}`);
+
+  // Start order monitor if enabled
+  if (process.env.ENABLE_ORDER_MONITOR === 'true') {
+    const orderMonitor = require('./services/orderMonitor');
+    await orderMonitor.start();
+  }
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');
+
+  // Stop order monitor
+  try {
+    const orderMonitor = require('./services/orderMonitor');
+    orderMonitor.stop();
+  } catch (error) {
+    console.error('Error stopping order monitor:', error.message);
+  }
+
   server.close(() => {
     console.log('HTTP server closed');
   });
