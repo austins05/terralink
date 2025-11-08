@@ -102,10 +102,14 @@ class OrderMonitor {
 
           if (recipients.length > 0) {
             try {
+              // Get custom message for this notification type
+              const customMessage = notificationConfig.getCustomMessage(decision.reason);
+
               await emailService.sendOrderNotification(
                 orderDetails,
                 recipients,
-                decision.reason
+                decision.reason,
+                customMessage
               );
               console.log('✓ Notification sent for order ' + order.id + ' to ' + recipients.length + ' recipient(s)');
             } catch (error) {

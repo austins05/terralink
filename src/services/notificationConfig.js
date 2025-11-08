@@ -20,6 +20,12 @@ class NotificationConfig {
         exclusion: true,
         nogo: true,
         zeroArea: false
+      },
+      customMessages: {
+        reference_field: '',
+        exclusion_zone: '',
+        nogo_zone: '',
+        zero_area: ''
       }
     };
     this.loadConfig();
@@ -135,6 +141,28 @@ class NotificationConfig {
 
     // Remove duplicates
     return [...new Set(recipients)];
+  }
+
+  /**
+   * Set custom message for notification type
+   * @param {string} notificationType - Type of notification
+   * @param {string} message - Custom message
+   */
+  async setCustomMessage(notificationType, message) {
+    if (!this.config.customMessages) {
+      this.config.customMessages = {};
+    }
+    this.config.customMessages[notificationType] = message;
+    await this.saveConfig();
+    return this.config.customMessages;
+  }
+
+  /**
+   * Get custom message for notification type
+   * @param {string} notificationType - Type of notification
+   */
+  getCustomMessage(notificationType) {
+    return this.config.customMessages?.[notificationType] || '';
   }
 
   /**

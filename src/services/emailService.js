@@ -39,8 +39,9 @@ class EmailService {
    * @param {Object} order - Order details
    * @param {Array} recipients - Email addresses
    * @param {string} notificationType - Type of notification
+   * @param {string} customMessage - Optional custom message
    */
-  async sendOrderNotification(order, recipients, notificationType = 'special_order') {
+  async sendOrderNotification(order, recipients, notificationType = 'special_order', customMessage = '') {
     if (!this.initialized) {
       throw new Error('Email service not initialized');
     }
@@ -51,8 +52,8 @@ class EmailService {
     }
 
     const subject = this.getEmailSubject(order, notificationType);
-    const htmlContent = this.getEmailHtml(order, notificationType);
-    const textContent = this.getEmailText(order, notificationType);
+    const htmlContent = this.getEmailHtml(order, notificationType, customMessage);
+    const textContent = this.getEmailText(order, notificationType, customMessage);
 
     try {
       const info = await this.transporter.sendMail({
@@ -94,7 +95,18 @@ class EmailService {
   /**
    * Get email HTML content
    */
-  getEmailHtml(order, notificationType) {
+  getEmailHtml(order, notificationType, customMessage = '') {
+    const createdDate = order.creationDate
+      ? new Date(order.creationDate * 1000).toLocaleString('en-US', {
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZoneName: 'short'
+        })
+      : 'Unknown';
     const typeDescriptions = {
       'reference_field': {
         title: 'Reference Field Detected',
@@ -143,23 +155,30 @@ class EmailService {
             <p>${typeInfo.description}</p>
         </div>
         <div class="content">
+            <div style="background: #667eea; color: white; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 10px 0; color: white;">Created by: ${order.contractor}</h3>
+                <p style="margin: 0; font-size: 14px;">Order Created: ${createdDate}</p>
+            </div>
+
+            ${customMessage ? `
+            <div style="background: #dbeafe; border-left: 4px solid #3b82f6; padding: 15px; margin: 15px 0; border-radius: 4px;">
+                <strong style="color: #1e40af;">Custom Message:</strong>
+                <p style="margin: 8px 0 0 0; color: #1e3a8a;">${customMessage}</p>
+            </div>
+            ` : ''}
+
             <h3>Order Details</h3>
-            
+
             <div class="field">
                 <span class="label">Order ID:</span>
                 <span class="value">${order.id}</span>
             </div>
-            
+
             <div class="field">
                 <span class="label">Name:</span>
                 <span class="value">${order.name || 'N/A'}</span>
             </div>
-            
-            <div class="field">
-                <span class="label">Contractor:</span>
-                <span class="value">${order.contractor}</span>
-            </div>
-            
+
             <div class="field">
                 <span class="label">Customer:</span>
                 <span class="value">${order.customer || order.customerFullName || 'N/A'}</span>
@@ -220,14 +239,37 @@ class EmailService {
   /**
    * Get plain text email content
    */
-  getEmailText(order, notificationType) {
+  getEmailText(order, notificationType, customMessage = '') {
+    const createdDate = order.creationDate
+      ? new Date(order.creationDate * 1000).toLocaleString('en-US', {
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZoneName: 'short'
+        })
+      : 'Unknown';
+
     return `
 Terralink Order Notification
 ${notificationType.toUpperCase().replace('_', ' ')}
 
+========================================
+CREATED BY: ${order.contractor}
+ORDER CREATED: ${createdDate}
+========================================
+
+${customMessage ? `
+CUSTOM MESSAGE:
+${customMessage}
+
+========================================
+` : ''}
+
 Order ID: ${order.id}
 Name: ${order.name || 'N/A'}
-Contractor: ${order.contractor}
 Customer: ${order.customer || order.customerFullName || 'N/A'}
 Status: ${order.status}
 Address: ${order.address || 'N/A'}

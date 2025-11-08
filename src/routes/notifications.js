@@ -220,11 +220,15 @@ router.post('/test', async (req, res) => {
       });
     }
 
+    // Get custom message
+    const customMessage = notificationConfig.getCustomMessage(decision.reason);
+
     // Send notification
     const emailInfo = await emailService.sendOrderNotification(
       order,
       recipients,
-      decision.reason
+      decision.reason,
+      customMessage
     );
 
     res.json({
@@ -287,7 +291,6 @@ router.get('/check/:orderId', async (req, res) => {
   }
 });
 
-module.exports = router;
 
 /**
  * Get monitor status
@@ -372,6 +375,93 @@ router.post('/monitor/reset', (req, res) => {
     });
   } catch (error) {
     console.error('Reset monitor error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+module.exports = router;
+
+/**
+ * Set custom message for notification type
+ * POST /api/notifications/custom-message
+ * Body: { type: "reference_field", message: "Your custom message here" }
+ */
+router.post('/custom-message', async (req, res) => {
+  try {
+    const { type, message } = req.body;
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Notification type is required'
+      });
+    }
+
+    const validTypes = ['reference_field', 'exclusion_zone', 'nogo_zone', 'zero_area'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid notification type. Must be one of: ' + validTypes.join(', ')
+      });
+    }
+
+    const messages = await notificationConfig.setCustomMessage(type, message || '');
+
+    res.json({
+      success: true,
+      message: 'Custom message updated for ' + type,
+      data: messages
+    });
+  } catch (error) {
+    console.error('Set custom message error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Get all custom messages
+ * GET /api/notifications/custom-messages
+ */
+router.get('/custom-messages', (req, res) => {
+  try {
+    const config = notificationConfig.getConfig();
+    
+    res.json({
+      success: true,
+      data: config.customMessages || {}
+    });
+  } catch (error) {
+    console.error('Get custom messages error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Delete custom message for notification type
+ * DELETE /api/notifications/custom-message/:type
+ */
+router.delete('/custom-message/:type', async (req, res) => {
+  try {
+    const { type } = req.params;
+    
+    const messages = await notificationConfig.setCustomMessage(type, '');
+
+    res.json({
+      success: true,
+      message: 'Custom message cleared for ' + type,
+      data: messages
+    });
+  } catch (error) {
+    console.error('Delete custom message error:', error);
     res.status(500).json({
       success: false,
       error: error.message
