@@ -9,11 +9,11 @@ class NotificationConfig {
       alwaysNotify: [],
       contractorEmails: {},
       emailConfig: {
-        smtpHost: '',
+        smtpHost: 'smtp.gmail.com',
         smtpPort: 587,
         smtpSecure: false,
-        smtpUser: '',
-        smtpPassword: ''
+        smtpUser: 'rotorsync@gmail.com',
+        smtpPassword: 'qhkg zuvb jcvv rubh'
       },
       notificationRules: {
         outlines: true,

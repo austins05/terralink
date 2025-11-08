@@ -220,6 +220,12 @@ router.post('/test', async (req, res) => {
       });
     }
 
+    // Initialize email service if needed
+    const config = notificationConfig.getConfig();
+    if (!emailService.initialized && config.emailConfig.smtpHost) {
+      await emailService.initialize(config.emailConfig);
+    }
+
     // Get custom message
     const customMessage = notificationConfig.getCustomMessage(decision.reason);
 
