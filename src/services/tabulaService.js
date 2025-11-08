@@ -224,6 +224,7 @@ class TabulaService {
 
       const prodDupliValue = details?.['prod dupli'] || '';
       const colorValue = details?.Color || '';
+      const boundaryColorValue = details?.['Boundary color'] || '';
 
       return {
         id: job.id,
@@ -240,6 +241,7 @@ class TabulaService {
         productList: (details?.product_list || job.product_list) || '',
         prodDupli: prodDupliValue,
         color: colorValue,
+        boundaryColor: boundaryColorValue,
         address: (details?.address || job.address) || '',
         notes: (details?.notes || job.notes) || '',
         deleted: job.deleted || false,
@@ -316,6 +318,7 @@ class TabulaService {
         workedUrl: job.worked_url,
         deleted: job.deleted || false,
         color: job.Color || '',
+        boundaryColor: job['Boundary color'] || '',
         urgency: job.urgency || '',
         account: job.account,
         customerAccount: job.customer_account
