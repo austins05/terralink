@@ -229,7 +229,7 @@ class TabulaService {
         id: job.id,
         name: job.block_name || job.order_name || `Job ${job.id}`,
         customer: job.customer || 'No Customer',
-        contractor: details?.contractor || details?.Contractor || '',
+        contractor: details?.account?.name || details?.account?.contractor_name || '',
         area: job.area || job.gross_coverage_area || 0,
         status: job.status,
         orderNumber: job.order_number || '',
@@ -294,7 +294,7 @@ class TabulaService {
         id: job.id,
         name: job.block_name || job.order_name || `Job ${job.id}`,
         customer: job.customer || 'No Customer',
-        contractor: job.contractor || job.Contractor || '',  // Contractor field from Tracmap
+        contractor: job.account?.name || job.account?.contractor_name || '',  // Contractor name from account
         customerFullName: job.customer_full_name,
         area: job.area || job.gross_coverage_area || 0,
         status: job.status,
