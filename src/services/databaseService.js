@@ -86,7 +86,11 @@ class DatabaseService {
         firstSeenAt INTEGER,
         lastUpdatedAt INTEGER,
         season TEXT,
-        fullData TEXT
+        fullData TEXT,
+
+        requestedGeometry TEXT,
+        workedGeometry TEXT,
+        workedDetailedGeometry TEXT
       );
     `;
 
@@ -107,7 +111,7 @@ class DatabaseService {
   /**
    * Save or update a job in the database
    */
-  async saveJob(job) {
+  async saveJob(job, geometry = null) {
     const now = Math.floor(Date.now() / 1000);
     const season = this.getSeason(job.creationDate || now);
 
@@ -117,8 +121,9 @@ class DatabaseService {
         orderNumber, orderType, subtype, address, notes, productList,
         prodDupli, color, boundaryColor, requestedUrl, workedUrl,
         modifiedDate, dueDate, creationDate, deleted, rts, urgency,
-        firstSeenAt, lastUpdatedAt, season, fullData
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        firstSeenAt, lastUpdatedAt, season, fullData,
+        requestedGeometry, workedGeometry, workedDetailedGeometry
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
@@ -149,7 +154,10 @@ class DatabaseService {
       now,
       now,
       season,
-      JSON.stringify(job)
+      JSON.stringify(job),
+      geometry?.requested ? JSON.stringify(geometry.requested) : null,
+      geometry?.worked ? JSON.stringify(geometry.worked) : null,
+      geometry?.workedDetailed ? JSON.stringify(geometry.workedDetailed) : null
     ];
 
     this.db.run(sql, params);
@@ -161,12 +169,13 @@ class DatabaseService {
   /**
    * Save multiple jobs in a transaction
    */
-  async saveJobs(jobs) {
+  async saveJobs(jobs, geometryMap = null) {
     const results = { saved: 0, updated: 0, errors: 0 };
 
     for (const job of jobs) {
       try {
-        await this.saveJob(job);
+        const geometry = geometryMap ? geometryMap[job.id] : null;
+        await this.saveJob(job, geometry);
         results.saved++;
       } catch (error) {
         console.error(`Error saving job ${job.id}:`, error.message);
@@ -307,18 +316,21 @@ class DatabaseService {
         rowObj[col] = row[idx];
       });
 
+      // Construct job from columns
+      let jobData;
+
       // Try to parse fullData if available
       try {
         if (rowObj.fullData) {
-          jobs.push(JSON.parse(rowObj.fullData));
-          continue;
+          jobData = JSON.parse(rowObj.fullData);
         }
       } catch (error) {
         // Fall through to manual construction
       }
 
-      // Construct job from columns
-      jobs.push({
+      // If no fullData, construct from columns
+      if (!jobData) {
+        jobData = {
         id: rowObj.id,
         name: rowObj.name,
         customer: rowObj.customer,
@@ -340,10 +352,36 @@ class DatabaseService {
         modifiedDate: rowObj.modifiedDate,
         dueDate: rowObj.dueDate,
         creationDate: rowObj.creationDate,
-        deleted: rowObj.deleted === 1,
-        rts: rowObj.rts === 1,
-        urgency: rowObj.urgency
-      });
+          deleted: rowObj.deleted === 1,
+          rts: rowObj.rts === 1,
+          urgency: rowObj.urgency
+        };
+      }
+
+      // Always add geometry fields if available (regardless of fullData)
+      if (rowObj.requestedGeometry) {
+        try {
+          jobData.requestedGeometry = JSON.parse(rowObj.requestedGeometry);
+        } catch (e) {
+          console.error('Error parsing requestedGeometry:', e.message);
+        }
+      }
+      if (rowObj.workedGeometry) {
+        try {
+          jobData.workedGeometry = JSON.parse(rowObj.workedGeometry);
+        } catch (e) {
+          console.error('Error parsing workedGeometry:', e.message);
+        }
+      }
+      if (rowObj.workedDetailedGeometry) {
+        try {
+          jobData.workedDetailedGeometry = JSON.parse(rowObj.workedDetailedGeometry);
+        } catch (e) {
+          console.error('Error parsing workedDetailedGeometry:', e.message);
+        }
+      }
+
+      jobs.push(jobData);
     }
 
     return jobs;

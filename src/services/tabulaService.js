@@ -209,9 +209,8 @@ class TabulaService {
       // Transform and return
       const transformedJobs = this.transformJobsToFieldMaps(cache.fullJobList, cache.jobDetailsCache);
 
-      // Save to database asynchronously (don't wait)
-      databaseService.saveJobs(transformedJobs)
-        .then(result => console.log(`💾 Saved ${result.saved + result.updated} jobs to database`))
+      // Save to database with geometry asynchronously (don't wait)
+      this.saveJobsToDatabase(transformedJobs, accountId)
         .catch(err => console.error('Database save error:', err.message));
 
       return transformedJobs;
@@ -465,6 +464,80 @@ class TabulaService {
       // Something else happened
       return new Error(`Tabula API Error: ${error.message}`);
     }
+  }
+
+  /**
+   * Fetch all geometry types and save jobs to database
+   * @param {Array} jobs - Array of job objects
+   * @param {string} accountId - Account ID
+   */
+  async saveJobsToDatabase(jobs, accountId) {
+    console.log(`💾 Fetching geometry for ${jobs.length} jobs to save to database...`);
+
+    const geometryMap = {};
+
+    // Fetch geometry for each job (in batches to avoid overwhelming the API)
+    const batchSize = 5;
+    for (let i = 0; i < jobs.length; i += batchSize) {
+      const batch = jobs.slice(i, i + batchSize);
+
+      const geometryPromises = batch.map(async (job) => {
+        const geometry = {
+          requested: null,
+          worked: null,
+          workedDetailed: null
+        };
+
+        try {
+          // Fetch requested geometry
+          try {
+            const req = await this.client.get(
+              `/accounts/${accountId}/jobs/${job.id}/geometry/requested`
+            );
+            geometry.requested = req.data;
+          } catch (err) {
+            console.log(`  ⚠ No requested geometry for job ${job.id}`);
+          }
+
+          // Fetch worked geometry
+          try {
+            const worked = await this.client.get(
+              `/accounts/${accountId}/jobs/${job.id}/geometry/worked`
+            );
+            geometry.worked = worked.data;
+          } catch (err) {
+            console.log(`  ⚠ No worked geometry for job ${job.id}`);
+          }
+
+          // Fetch worked detailed geometry
+          try {
+            const detailed = await this.client.get(
+              `/accounts/${accountId}/jobs/${job.id}/geometry/worked/detailed`
+            );
+            geometry.workedDetailed = detailed.data;
+          } catch (err) {
+            console.log(`  ⚠ No detailed geometry for job ${job.id}`);
+          }
+
+          geometryMap[job.id] = geometry;
+        } catch (error) {
+          console.error(`Error fetching geometry for job ${job.id}:`, error.message);
+        }
+      });
+
+      await Promise.all(geometryPromises);
+
+      // Small delay between batches to be nice to the API
+      if (i + batchSize < jobs.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
+
+    // Save to database with geometry
+    const result = await databaseService.saveJobs(jobs, geometryMap);
+    console.log(`💾 Saved ${result.saved + result.updated} jobs with geometry to database`);
+
+    return result;
   }
 }
 
