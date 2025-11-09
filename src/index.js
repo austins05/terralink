@@ -10,6 +10,8 @@ const customerRoutes = require('./routes/customers');
 const fieldMapRoutes = require('./routes/fieldMaps');
 const { router: monitorRoutes, trackRequest } = require('./routes/monitor');
 const notificationRoutes = require('./routes/notifications');
+const exportRoutes = require('./routes/export');
+const databaseService = require('./services/databaseService');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -64,6 +66,7 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/field-maps', fieldMapRoutes);
 app.use('/api/monitor', monitorRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/export', exportRoutes);
 
 // Root endpoint - redirect to dashboard
 app.get('/api', (req, res) => {
@@ -96,6 +99,14 @@ app.get('/api', (req, res) => {
         monitorStatus: 'GET /api/notifications/monitor/status',
         startMonitor: 'POST /api/notifications/monitor/start',
         stopMonitor: 'POST /api/notifications/monitor/stop'
+      },
+      export: {
+        stats: 'GET /api/export/stats',
+        bySeason: 'GET /api/export/season/:season',
+        byDateRange: 'GET /api/export/date-range?start=&end=',
+        byContractor: 'GET /api/export/contractor/:contractor',
+        all: 'GET /api/export/all',
+        downloadJson: 'GET /api/export/download/json?season=2025-Spring'
       }
     }
   });
@@ -119,6 +130,15 @@ const server = app.listen(PORT, async () => {
   console.log(`🔗 API URL: http://localhost:${PORT}`);
   console.log(`📊 Monitoring Dashboard: http://localhost:${PORT}`);
 
+  // Initialize database
+  try {
+    await databaseService.initialize();
+    const stats = await databaseService.getStats();
+    console.log(`💾 Database: ${stats.totalJobs} jobs stored`);
+  } catch (error) {
+    console.error('Database initialization error:', error.message);
+  }
+
   // Start order monitor if enabled
   if (process.env.ENABLE_ORDER_MONITOR === 'true') {
     const orderMonitor = require('./services/orderMonitor');
@@ -127,7 +147,7 @@ const server = app.listen(PORT, async () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
 
   // Stop order monitor
@@ -136,6 +156,13 @@ process.on('SIGTERM', () => {
     orderMonitor.stop();
   } catch (error) {
     console.error('Error stopping order monitor:', error.message);
+  }
+
+  // Close database
+  try {
+    await databaseService.close();
+  } catch (error) {
+    console.error('Error closing database:', error.message);
   }
 
   server.close(() => {

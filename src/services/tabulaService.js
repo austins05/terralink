@@ -1,5 +1,6 @@
 const axios = require('axios');
 const config = require('../config/tabula');
+const databaseService = require('./databaseService');
 
 class TabulaService {
   constructor() {
@@ -206,7 +207,14 @@ class TabulaService {
       console.log(`✅ Cache updated: ${cache.fullJobList.length} total jobs`);
 
       // Transform and return
-      return this.transformJobsToFieldMaps(cache.fullJobList, cache.jobDetailsCache);
+      const transformedJobs = this.transformJobsToFieldMaps(cache.fullJobList, cache.jobDetailsCache);
+
+      // Save to database asynchronously (don't wait)
+      databaseService.saveJobs(transformedJobs)
+        .then(result => console.log(`💾 Saved ${result.saved + result.updated} jobs to database`))
+        .catch(err => console.error('Database save error:', err.message));
+
+      return transformedJobs;
     } catch (error) {
       throw this.handleError(error);
     }
@@ -231,13 +239,17 @@ class TabulaService {
         name: job.block_name || job.order_name || `Job ${job.id}`,
         customer: job.customer || 'No Customer',
         contractor: details?.account?.name || details?.account?.contractor_name || '',
+        contractorId: details?.account?.id || details?.account?.contractor_id || null,
         area: job.area || job.gross_coverage_area || 0,
         status: job.status,
         orderNumber: job.order_number || '',
+        orderType: details?.order_type || job.order_type || '',
+        subtype: details?.subtype || job.subtype || '',
         requestedUrl: job.requested_url,
         workedUrl: job.worked_url,
         modifiedDate: job.modified_date,
         dueDate: job.due_date,
+        creationDate: details?.creation_date || job.creation_date || null,
         productList: (details?.product_list || job.product_list) || '',
         prodDupli: prodDupliValue,
         color: colorValue,
@@ -245,7 +257,8 @@ class TabulaService {
         address: (details?.address || job.address) || '',
         notes: (details?.notes || job.notes) || '',
         deleted: job.deleted || false,
-        rts: details?.RTS || false
+        rts: details?.RTS || false,
+        urgency: details?.urgency || job.urgency || ''
       };
     });
   }

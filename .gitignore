@@ -28,3 +28,5 @@ Thumbs.db
 *.backup
 *.backup.*
 notification-config.json
+terralink-jobs.db
+terralink-jobs.db-journal
