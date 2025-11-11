@@ -2,6 +2,9 @@
 
 A Node.js/Express backend server that integrates the Tabula (Tracmap) API with the Rotorsync iOS application, providing efficient field map management, contractor data, and real-time monitoring capabilities.
 
+
+## To add:
+Make so we have aweb interface and if Tabula goes down we can still add orders and then when tabula comes back up it will push those orders to tabula. 
 ## 🌟 Overview
 
 Terralink Backend acts as an intelligent middleware between the Rotorsync iOS app and the Tabula API, offering:
