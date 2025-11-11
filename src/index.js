@@ -12,6 +12,7 @@ const { router: monitorRoutes, trackRequest } = require('./routes/monitor');
 const notificationRoutes = require('./routes/notifications');
 const exportRoutes = require('./routes/export');
 const databaseService = require('./services/databaseService');
+const syncScheduler = require('./services/syncScheduler');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -79,7 +80,8 @@ app.get('/api', (req, res) => {
       health: '/health',
       monitor: {
         stats: 'GET /api/monitor/stats',
-        sync: 'POST /api/monitor/sync'
+        sync: 'POST /api/monitor/sync',
+        syncStatus: 'GET /api/monitor/sync/status'
       },
       customers: {
         search: 'GET /api/customers/search?q=searchTerm',
@@ -139,6 +141,14 @@ const server = app.listen(PORT, async () => {
     console.error('Database initialization error:', error.message);
   }
 
+  // Start automatic sync scheduler
+  try {
+    syncScheduler.start();
+    console.log('🔄 Automatic Tabula sync scheduler started (10-minute intervals)');
+  } catch (error) {
+    console.error('Sync scheduler start error:', error.message);
+  }
+
   // Start order monitor if enabled
   if (process.env.ENABLE_ORDER_MONITOR === 'true') {
     const orderMonitor = require('./services/orderMonitor');
@@ -149,6 +159,14 @@ const server = app.listen(PORT, async () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
+
+  // Stop sync scheduler
+  try {
+    syncScheduler.stop();
+    console.log('Sync scheduler stopped');
+  } catch (error) {
+    console.error('Error stopping sync scheduler:', error.message);
+  }
 
   // Stop order monitor
   try {

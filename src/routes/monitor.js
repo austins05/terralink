@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const syncScheduler = require('../services/syncScheduler');
 
 // In-memory stats storage
 const stats = {
@@ -159,6 +160,9 @@ router.get('/stats', (req, res) => {
     ? Math.round((stats.tabulaStats.successfulRequests / stats.tabulaStats.totalRequests) * 100) + '%'
     : '0%';
 
+  // Get sync scheduler status
+  const syncStatus = syncScheduler.getStatus();
+
   res.json({
     // Backend stats
     totalRequests: stats.totalRequests,
@@ -183,26 +187,43 @@ router.get('/stats', (req, res) => {
       errorsToday: tabulaErrorsToday,
       topEndpoints: topTabulaEndpoints,
       recentRequests: stats.tabulaRequests.slice(0, 50)
-    }
+    },
+
+    // Sync scheduler status
+    syncScheduler: syncStatus
   });
 });
 
-// Sync with Tabula
+// Get sync scheduler status
+router.get('/sync/status', (req, res) => {
+  const status = syncScheduler.getStatus();
+  res.json(status);
+});
+
+// Sync with Tabula (manual trigger)
 router.post('/sync', async (req, res) => {
   try {
-    // This is a placeholder for actual sync logic
-    // You can implement actual Tabula sync functionality here
+    console.log('📲 Manual Tabula sync triggered at', new Date().toISOString());
 
-    console.log('Manual Tabula sync triggered at', new Date().toISOString());
+    // Trigger a manual sync
+    const result = await syncScheduler.sync();
 
-    // Example: You could trigger a cache refresh, data update, etc.
-    // For now, we'll just return a success message
-
-    res.json({
-      success: true,
-      message: 'Tabula sync initiated successfully',
-      timestamp: new Date().toISOString()
-    });
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        fieldMapCount: result.fieldMapCount,
+        duration: result.duration,
+        timestamp: result.timestamp
+      });
+    } else {
+      res.status(result.skipped ? 409 : 500).json({
+        success: false,
+        message: result.message,
+        error: result.error,
+        timestamp: result.timestamp
+      });
+    }
   } catch (error) {
     console.error('Sync error:', error);
     res.status(500).json({
