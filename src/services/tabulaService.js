@@ -257,6 +257,7 @@ class TabulaService {
         notes: (details?.notes || job.notes) || '',
         deleted: job.deleted || false,
         rts: details?.RTS || false,
+        crop: details?.Crop || '',
         urgency: details?.urgency || job.urgency || ''
       };
     });
@@ -331,6 +332,8 @@ class TabulaService {
         deleted: job.deleted || false,
         color: job.Color || '',
         boundaryColor: job['Boundary color'] || '',
+        rts: job.RTS || false,
+        crop: job.Crop || '',
         urgency: job.urgency || '',
         account: job.account,
         customerAccount: job.customer_account
